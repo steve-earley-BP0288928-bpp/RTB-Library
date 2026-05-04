@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sheet Music Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Source+Sans+3:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f7f6f3;
+    --bg3: #f0ede8;
+    --text: #1a1a18;
+    --text2: #5f5e5a;
+    --text3: #888780;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius: 10px;
+    --accent: #3C3489;
+    --accent-bg: #EEEDFE;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252522;
+      --bg3: #2e2e2b;
+      --text: #f0ede8;
+      --text2: #b4b2a9;
+      --text3: #888780;
+      --border: rgba(255,255,255,0.10);
+      --border2: rgba(255,255,255,0.20);
+      --accent: #AFA9EC;
+      --accent-bg: #26215C;
+    }
+    .missing-yes { background: #501313 !important; color: #F7C1C1 !important; }
+    .missing-no  { background: #173404 !important; color: #C0DD97 !important; }
+    .type-badge  { background: #26215C !important; color: #CEC BF6 !important; }
+  }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--bg);
+    border-bottom: 0.5px solid var(--border);
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  #count-label {
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  .controls {
+    background: var(--bg);
+    border-bottom: 0.5px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  input[type="text"], select {
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg2);
+    border: 0.5px solid var(--border2);
+    border-radius: 6px;
+    padding: 7px 11px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input[type="text"] { flex: 1; min-width: 220px; }
+  select { min-width: 150px; }
+
+  input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(83,74,183,0.15);
+  }
+
+  .missing-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text2);
+    cursor: pointer;
+    white-space: nowrap;
+    padding: 7px 4px;
+  }
+
+  .missing-toggle input { cursor: pointer; width: 15px; height: 15px; accent-color: var(--accent); }
+
+  .table-wrap {
+    padding: 1.5rem 2rem 3rem;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    table-layout: fixed;
+    background: var(--bg);
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 0.5px solid var(--border);
+  }
+
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+    border-bottom: 0.5px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    background: var(--bg2);
+  }
+
+  th:hover { color: var(--text); }
+  th.sorted { color: var(--accent); }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 0.5px solid var(--border);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr.data-row { cursor: pointer; transition: background 0.1s; }
+  tr.data-row:hover td { background: var(--bg2); }
+
+  .col-idx      { width: 5%; }
+  .col-title    { width: 23%; }
+  .col-composer { width: 14%; }
+  .col-arranger { width: 13%; }
+  .col-desc     { width: 22%; }
+  .col-missing  { width: 10%; }
+  .col-comments { width: 7%; }
+  .col-date     { width: 9%; }
+
+  .missing-yes {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 500;
+    background: #FCEBEB;
+    color: #791F1F;
+  }
+
+  .missing-no {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 500;
+    background: #EAF3DE;
+    color: #27500A;
+  }
+
+  .idx-cell { color: var(--text3); font-size: 12px; font-family: monospace; }
+  .muted    { color: var(--text3); }
+
+  .no-results {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text2);
+    font-size: 14px;
+  }
+
+  /* Loading / error state */
+  #status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    font-size: 14px;
+    color: var(--text2);
+    gap: 10px;
+  }
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Detail overlay */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+
+  .overlay.open { display: flex; }
+
+  .detail-card {
+    background: var(--bg);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 1.5rem 1.75rem;
+    width: 100%;
+    max-width: 500px;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .detail-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--text2);
+    line-height: 1;
+  }
+
+  .detail-close:hover { color: var(--text); }
+
+  .detail-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    padding-right: 24px;
+  }
+
+  .detail-sub {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 1.25rem;
+  }
+
+  .detail-row {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 13px;
+  }
+
+  .detail-row:last-child { border-bottom: none; }
+
+  .detail-label {
+    width: 110px;
+    flex-shrink: 0;
+    color: var(--text3);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-top: 2px;
+  }
+
+  .detail-val {
+    flex: 1;
+    color: var(--text);
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 700px) {
+    header, .controls, .table-wrap { padding-left: 1rem; padding-right: 1rem; }
+    .col-arranger, .col-desc, .col-comments { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sheet Music Library</h1>
+  <span id="count-label"></span>
+</header>
+
+<div class="controls">
+  <input type="text" id="q" placeholder="Search title, composer, arranger, description…" oninput="render()" />
+  <select id="f-composer" onchange="render()"><option value="">All composers</option></select>
+  <select id="f-arranger" onchange="render()"><option value="">All arrangers</option></select>
+  <label class="missing-toggle">
+    <input type="checkbox" id="f-missing" onchange="render()" /> Parts missing only
+  </label>
+</div>
+
+<div class="table-wrap">
+  <div id="status"><div class="spinner"></div> Loading catalogue…</div>
+
+  <table id="main-table" style="display:none">
+    <thead>
+      <tr>
+        <th class="col-idx"    onclick="sort('INDEX')">#<span id="sa-INDEX"></span></th>
+        <th class="col-title"  onclick="sort('TITLE')">Title<span id="sa-TITLE"></span></th>
+        <th class="col-composer" onclick="sort('COMPOSER')">Composer<span id="sa-COMPOSER"></span></th>
+        <th class="col-arranger" onclick="sort('ARRANGER')">Arranger<span id="sa-ARRANGER"></span></th>
+        <th class="col-desc"   onclick="sort('DESCRIPTION')">Description<span id="sa-DESCRIPTION"></span></th>
+        <th class="col-missing" onclick="sort('PARTS MISSING')">Parts<span id="sa-PARTS MISSING"></span></th>
+        <th class="col-comments">Notes</th>
+        <th class="col-date"   onclick="sort('DATE CHECKED')">Checked<span id="sa-DATE CHECKED"></span></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <p class="no-results" id="no-results" style="display:none">No pieces match your search.</p>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeDetail(event)">
+  <div class="detail-card">
+    <button class="detail-close" onclick="closeOverlay()">✕</button>
+    <div class="detail-title" id="d-title"></div>
+    <div class="detail-sub"   id="d-sub"></div>
+    <div id="d-rows"></div>
+  </div>
+</div>
+
+<script>
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDVK3Hk-Wqr6GIqFqADtz-Ua5TQdquGimccOx8xo2jR1RrDfHWuYDQSbLXf3U0HUooO_yK48hOYcJF/pub?gid=0&single=true&output=csv';
+
+let DATA = [];
+let sortCol = 'TITLE', sortDir = 1;
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = parseRow(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseRow(line);
+    const obj = {};
+    headers.forEach((h, i) => { obj[h.trim()] = (vals[i] || '').trim(); });
+    return obj;
+  }).filter(r => r['TITLE'] || r['INDEX']);
+}
+
+function parseRow(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      result.push(cur); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function isMissing(val) {
+  if (!val) return false;
+  const v = val.toLowerCase().trim();
+  return v === 'yes' || v === 'true' || v === '1' || v === 'y';
+}
+
+function populate(selId, key) {
+  const sel = document.getElementById(selId);
+  while (sel.options.length > 1) sel.remove(1);
+  [...new Set(DATA.map(d => d[key]).filter(Boolean))].sort().forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v; sel.appendChild(o);
+  });
+}
+
+async function loadData() {
+  try {
+    const resp = await fetch(CSV_URL);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    DATA = parseCSV(text);
+    document.getElementById('status').style.display = 'none';
+    document.getElementById('main-table').style.display = 'table';
+    populate('f-composer', 'COMPOSER');
+    populate('f-arranger', 'ARRANGER');
+    render();
+    // Update arrow for default sort
+    document.getElementById('sa-TITLE').textContent = ' ↑';
+    document.querySelector('[onclick="sort(\'TITLE\')"]').classList.add('sorted');
+  } catch (e) {
+    document.getElementById('status').innerHTML =
+      '<span>Could not load catalogue. Make sure the sheet is published as CSV.</span>';
+  }
+}
+
+function sort(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = 1; }
+  document.querySelectorAll('th').forEach(t => t.classList.remove('sorted'));
+  const th = document.querySelector(`[onclick="sort('${col}')"]`);
+  if (th) th.classList.add('sorted');
+  document.querySelectorAll('[id^="sa-"]').forEach(s => s.textContent = '');
+  const arrow = document.getElementById('sa-' + col);
+  if (arrow) arrow.textContent = sortDir === 1 ? ' ↑' : ' ↓';
+  render();
+}
+
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+function render() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const fComp = document.getElementById('f-composer').value;
+  const fArr  = document.getElementById('f-arranger').value;
+  const fMiss = document.getElementById('f-missing').checked;
+
+  let rows = DATA.filter(d => {
+    if (fComp && d['COMPOSER'] !== fComp) return false;
+    if (fArr  && d['ARRANGER'] !== fArr)  return false;
+    if (fMiss && !isMissing(d['PARTS MISSING'])) return false;
+    if (q) {
+      const hay = [d['TITLE'], d['COMPOSER'], d['ARRANGER'], d['DESCRIPTION']].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    if (sortCol === 'INDEX') return (parseInt(a[sortCol]||0) - parseInt(b[sortCol]||0)) * sortDir;
+    return String(a[sortCol]??'').localeCompare(String(b[sortCol]??'')) * sortDir;
+  });
+
+  document.getElementById('count-label').textContent =
+    rows.length + ' piece' + (rows.length !== 1 ? 's' : '');
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+
+  rows.forEach(d => {
+    const miss = isMissing(d['PARTS MISSING']);
+    const tr = document.createElement('tr');
+    tr.className = 'data-row';
+    tr.onclick = () => openDetail(d);
+    tr.innerHTML = `
+      <td class="idx-cell">${esc(d['INDEX'])}</td>
+      <td title="${esc(d['TITLE'])}">${esc(d['TITLE'])}</td>
+      <td title="${esc(d['COMPOSER'])}">${esc(d['COMPOSER'])||'<span class="muted">—</span>'}</td>
+      <td title="${esc(d['ARRANGER'])}">${esc(d['ARRANGER'])||'<span class="muted">—</span>'}</td>
+      <td title="${esc(d['DESCRIPTION'])}">${esc(d['DESCRIPTION'])||'<span class="muted">—</span>'}</td>
+      <td><span class="${miss ? 'missing-yes' : 'missing-no'}">${miss ? 'Missing' : 'Complete'}</span></td>
+      <td>${d['COMMENTS'] ? '<span style="font-size:11px;color:var(--text3)">view ↗</span>' : ''}</td>
+      <td style="font-size:12px;color:var(--text3)">${esc(d['DATE CHECKED'])}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('no-results').style.display = rows.length === 0 ? 'block' : 'none';
+}
+
+function openDetail(d) {
+  document.getElementById('d-title').textContent = d['TITLE'] || '—';
+  const sub = [d['COMPOSER'], d['ARRANGER'] ? 'arr. ' + d['ARRANGER'] : ''].filter(Boolean).join(' / ');
+  document.getElementById('d-sub').textContent = sub || '—';
+  const miss = isMissing(d['PARTS MISSING']);
+  const fields = [
+    ['Description', d['DESCRIPTION'] || '—'],
+    ['Parts',       miss ? '⚠ Missing' : '✓ Complete'],
+    ['Comments',    d['COMMENTS'] || '—'],
+    ['Date checked',d['DATE CHECKED'] || '—'],
+    ['Index',       d['INDEX'] || '—'],
+  ];
+  document.getElementById('d-rows').innerHTML = fields.map(([l, v]) =>
+    `<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-val">${esc(v)}</span></div>`
+  ).join('');
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeOverlay() { document.getElementById('overlay').classList.remove('open'); }
+function closeDetail(e) { if (e.target === document.getElementById('overlay')) closeOverlay(); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeOverlay(); });
+
+loadData();
+</script>
+</body>
+</html>
